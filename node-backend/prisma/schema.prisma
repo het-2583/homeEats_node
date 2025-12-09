@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  username  String    @unique
+  email     String?   @unique
+  password  String
+  name      String?   
+  phone     String?
+  userType  UserType  @default(customer)
+  address   Address?
+  orders    Order[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model TiffinOwner {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique @db.ObjectId
+  businessName    String
+  businessAddress String
+  businessPincode String
+  rating          Float    @default(0)
+  tiffins         Tiffin[]
+  orders          Order[]
+  bankAccount     BankAccount?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("tiffin_owners")
+}
+
+model Tiffin {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  ownerId     String      @db.ObjectId
+  owner       TiffinOwner @relation(fields: [ownerId], references: [id])
+  name        String
+  description String
+  price       Float
+  image       String?
+  isAvailable Boolean     @default(true)
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("tiffins")
+}
+
+model DeliveryBoy {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String     @unique @db.ObjectId
+  vehicleNo  String
+  rating     Float      @default(0)
+  isActive   Boolean    @default(true)
+  deliveries Delivery[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("delivery_boys")
+}
+
+model Order {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  customerId    String       @db.ObjectId
+  customer      User         @relation(fields: [customerId], references: [id])
+  ownerId       String       @db.ObjectId
+  owner         TiffinOwner  @relation(fields: [ownerId], references: [id])
+  items         OrderItem[]
+  totalAmount   Float
+  status        OrderStatus  @default(PENDING)
+  deliveryAddr  Address
+  paymentMethod String
+  delivery      Delivery?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  orderId  String @db.ObjectId
+  order    Order  @relation(fields: [orderId], references: [id])
+  tiffinId String @db.ObjectId
+  tiffin   Tiffin @relation(fields: [tiffinId], references: [id])
+  quantity Int
+  price    Float
+
+  @@map("order_items")
+}
+
+model Delivery {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  orderId       String       @unique @db.ObjectId
+  order         Order        @relation(fields: [orderId], references: [id])
+  deliveryBoyId String       @db.ObjectId
+  deliveryBoy   DeliveryBoy  @relation(fields: [deliveryBoyId], references: [id])
+  status        DeliveryStatus @default(ASSIGNED)
+  pickupTime    DateTime?
+  deliveryTime  DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("deliveries")
+}
+
+model Wallet {
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String              @unique @db.ObjectId
+  user         User                @relation(fields: [userId], references: [id])
+  balance      Float               @default(0)
+  transactions WalletTransaction[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String            @id @default(auto()) @map("_id") @db.ObjectId
+  walletId    String            @db.ObjectId
+  wallet      Wallet            @relation(fields: [walletId], references: [id])
+  amount      Float
+  type        TransactionType
+  description String
+  createdAt   DateTime          @default(now())
+
+  @@map("wallet_transactions")
+}
+
+model BankAccount {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  ownerId       String      @unique @db.ObjectId
+  owner         TiffinOwner @relation(fields: [ownerId], references: [id])
+  accountNumber String
+  ifscCode      String
+  accountHolder String
+  bankName      String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("bank_accounts")
+}
+
+type Address {
+  street  String
+  city    String
+  state   String
+  zipCode String
+  country String @default("India")
+}
+
+enum UserType {
+  customer
+  chef
+  admin
+  tiffinOwner
+  deliveryBoy
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  DELIVERING
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
